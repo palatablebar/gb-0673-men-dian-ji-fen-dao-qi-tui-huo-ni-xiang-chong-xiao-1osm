@@ -1,0 +1,48 @@
+{% extends 'base.html' %}{% block kpis %}<div class="kpi">本批可消费户<strong>{{ state.publication.summary.available_members }}</strong></div><div class="kpi">本批停用户<strong>{{ state.publication.summary.suspended_members }}</strong></div><div class="kpi">本批可用积分<strong>{{ state.publication.summary.usable_points }}</strong></div><div class="kpi">本批冻结积分<strong>{{ state.publication.summary.frozen_points }}</strong></div><div class="kpi">本批账面积分<strong>{{ state.publication.summary.book_points }}</strong></div>{% endblock %}{% block content %}
+<section class="panel primary-panel">
+  <div class="panel__head"><h2>发布可用余额</h2><span>{{ view.rows|length }} 户 / {{ view.metrics['状态'] }}</span></div>
+  <div class="column-letters"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span></div>
+  {{ cells(view.rows) }}
+</section>
+<div class="grid">
+  <section class="panel">
+    <div class="panel__head"><h2>本批发布</h2><span>{% if active %}生效 v{{ active.version }}{% else %}尚未发布{% endif %}</span></div>
+    <div class="release">
+      <dl>
+        <dt>本批状态</dt><dd class="badge {{ 'ok' if state.publication.publishable else 'bad' }}">{{ state.publication.status }}</dd>
+        <dt>可消费户</dt><dd>{{ state.publication.summary.available_members }} / 可用 {{ state.publication.summary.usable_points }}</dd>
+        <dt>停用户</dt><dd>{{ state.publication.summary.suspended_members }} / 冻结 {{ state.publication.summary.frozen_points }}</dd>
+        <dt>账面积分</dt><dd>{{ state.publication.summary.book_points }}</dd>
+        <dt>当前生效</dt><dd>{% if active %}v{{ active.version }} · {{ active.publication_id }} · {{ active.run_id }}{% else %}无{% endif %}</dd>
+        <dt>本批生效</dt><dd>{% if active and published and active.publication_id==published.publication_id %}本批结果已生效{% elif published %}本批结果已发布过（v{{ published.version }}），当前生效为其他版本{% elif active %}本批尚未发布，当前生效为其他批次{% else %}本批尚未发布，暂无生效版本{% endif %}</dd>
+      </dl>
+      {% if state.publication.publishable %}
+      <button id="publish" data-run="{{ state.manifest.run_id }}">发布本批可用余额</button>
+      {% else %}
+      <p class="notice bad">对账未通过，本批不发布；当前生效版本保持不变。</p>
+      <ul class="blocked">{% for item in state.publication.blocked %}<li><code>{{ item.code }}</code> {{ item.detail }}</li>{% endfor %}</ul>
+      {% endif %}
+      <output id="publish-result" aria-live="polite"></output>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel__head"><h2>停用依据</h2><span>{{ state.publication.summary.suspended_members }} 户</span></div>
+    <div class="evidence-list">
+      {% for row in state.publication.members if row.status != '可消费' %}
+      <div class="evidence-member">
+        <header><b>{{ row.member }}</b><span class="badge bad">{{ row.status }}</span><small>冻结 {{ row.frozen_balance }}</small></header>
+        <table><thead><tr><th>原始行</th><th>关联</th><th>编号</th><th>原因码</th><th>原因</th></tr></thead><tbody>
+        {% for item in row.evidence %}<tr><td>{{ item.line }}</td><td>{{ item.relation }}</td><td>{{ item.id }}</td><td>{{ item.code }}</td><td class="reason">{{ item.detail }}</td></tr>{% endfor %}
+        </tbody></table>
+      </div>
+      {% else %}<p class="notice">本批没有需要停用的会员。</p>{% endfor %}
+    </div>
+  </section>
+</div>
+{% if state.publication.unattributed %}
+<section class="panel">
+  <div class="panel__head"><h2>无法归属会员的隔离行</h2><span>{{ state.publication.unattributed|length }} 行</span></div>
+  {{ cells(state.publication.unattributed) }}
+</section>
+{% endif %}
+{% endblock %}

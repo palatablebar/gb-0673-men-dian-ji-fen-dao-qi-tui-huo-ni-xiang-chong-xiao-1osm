@@ -15,6 +15,16 @@ docker compose exec -T app pytest -q
 
 同输入与规则版本生成相同批号，只保留一条批次。复核入口 `POST /api/runs/{run_id}/review` 提交当前 `revision`，陈旧提交409。归档包只有一个下载入口 `GET /api/export/{run_id}`，含证据和运行摘要。原始隔离在页面同屏显示。
 
+### 可用余额发布
+
+异常积分记录隔离后，按会员粒度发布当天可用余额：无异常会员照常可消费；自身有隔离事件、或异常退款引用了其消费的会员，本批停用，余额冻结并逐条保留原始行、原因码和关联方式。不再整批延后，也不会把受影响会员的可用余额误发出去。
+
+入口 `GET /publish?run_id=...`、`POST /api/runs/{run_id}/publish`（也可 `POST /api/publish` 传 `run_id` 直接运行时批次），当前生效余额 `GET /api/publications/active`，发布历史 `GET /api/publications`。
+
+- 对账失败（行不守恒、积分不守恒、退款审计不通过）：本批返回 `published:false` 和阻断原因，当前生效版本保持不变。
+- 幂等：同一批次同一结果的重复发布、以及重跑同一批后的再次发布，沿用既有发布版本，不重复冻结、不重复生成记账；明确重发旧结果时只恢复该版本生效。
+- 页面同屏显示每户状态、账面/可用/冻结余额和停用依据，只展示本批。
+
 SQLite使用命名卷，容器重启后保留历史。要重建演示可在Compose中改用新的卷名称，保留旧卷。
 
 源码在 `app/`，样例在 `sample_data/`，测试在 `tests/`；定义见 `docs/DATA-DICTIONARY.md`，模块和边界测试对应关系见 `docs/DEPTH.md`。输入上限2MB，属于离线复核工具。
